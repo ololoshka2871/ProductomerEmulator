@@ -12,6 +12,8 @@ enum INFO {
 
     // ИД, преднозначенный для поиска
     ID_DISCOVER = 0xFFFF;
+
+    MAGICK = 0x09;
 }
 
 //------------------------------------------------------------------------------
@@ -38,8 +40,8 @@ message Request {
     // версия протокола запрашивающего
     required uint32 protocolVersion = 3;
 
-    // Таймштамп клиента. Если он есть в сообщении, то часы устройства будут установлены в соответствии с ним
-    optional fixed64 setClock = 4;
+    //--
+    optional WriteSettingsRequest writeSettings = 4;
 }
 
 //------------------------------------------------------------------------------
@@ -57,6 +59,73 @@ message Response {
     required STATUS Global_status = 4;
     // таймштамп устройства, когда фактически был сгененрирован ответ
     required fixed64 timestamp = 5;
+
+    //--
+    optional SettingsResponse Settings = 6;
 }
 
 //------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+
+message TCoeffs {
+    required float T0 = 1;
+    repeated float C = 2;
+    required float F0 = 3;
+}
+
+//------------------------------------------------------------------------------
+
+// Настройки: запись/чтение
+
+// Запись: Если поле не пустое, то его значение будет проверено и записано
+// Можно послать сообщение вообще без полей, тогда это просто запрос на чтение настроек
+message WriteSettingsRequest {
+    // серийный номер (16 бит)
+    optional uint32 partNumber = 1;
+    // время измерения канала 1 (16 бит)
+    optional uint32 measureTimeT1 = 2;
+    // время измерения канала 2 (16 бит)
+    optional uint32 measureTimeT2 = 3;
+    // Частота задающего генератора
+    // позволяет установить точное значение после измерения
+    optional uint32 ReferenceFrequency = 4;
+
+    // коэффициенты для каналов температуры
+    optional TCoeffs T1_Coeffs = 5;
+    optional TCoeffs T2_Coeffs = 6;
+
+    // Включить каналы температуры
+    optional bool Enable_T1_Chanel = 7;
+    optional bool Enable_T2_Chanel = 8;
+
+    // Показывать на дисплее значения частоты для каналов температуры
+    optional bool Show_T1_Freq = 9;
+    optional bool Show_T2_Freq = 10;
+}
+
+//------------------------------------------------------------------------------
+
+message SettingsResponse {
+    // серийный номер (16 бит)
+    required uint32 partNumber = 1;
+    // время измерения канала 1 (16 бит)
+    required uint32 measureTimeT1 = 2;
+    // время измерения канала 2 (16 бит)
+    required uint32 measureTimeT2 = 3;
+    // Частота задающего генератора
+    // позволяет установить точное значение после измерения
+    required uint32 ReferenceFrequency = 4;
+
+    // коэффициенты для каналов температуры
+    required TCoeffs T1_Coeffs = 5;
+    required TCoeffs T2_Coeffs = 6;
+
+    // Включить каналы температуры
+    required bool Enable_T1_Chanel = 7;
+    required bool Enable_T2_Chanel = 8;
+
+    // Показывать на дисплее значения частоты для каналов температуры
+    required bool Show_T1_Freq = 9;
+    required bool Show_T2_Freq = 10;
+}

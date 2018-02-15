@@ -1,7 +1,9 @@
 import os
+
 import dbus
-import dbus.service
 import dbus.mainloop.glib
+import dbus.service
+
 try:
     from gi.repository import GObject
 except ImportError:
@@ -49,13 +51,12 @@ class Profile(dbus.service.Object):
             self.fd = -1
 
     def io_cb(self, fd, conditions):
-        data = os.read(fd, 1024)
-        self.read_io_cb('{0}'.format(data.decode('ascii')))
+        self.read_io_cb(os.read(fd, 1024))
         return True
 
     def write_io(self, value):
         try:
-            os.write(self.fd, value.encode('utf8'))
+            os.write(self.fd, value)
         except ConnectionResetError:
             self.fd = -1
 
