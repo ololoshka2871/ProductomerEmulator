@@ -1,7 +1,9 @@
 #!/usr/bin/python3
 
 
+import math
 import time
+from functools import reduce
 
 import ProtobufDevice_0000E002_pb2 as pb
 from ProtocolProcessor import ProtocolProcessor
@@ -14,7 +16,7 @@ def dummy_print(*args, **kargs):
     pass
 
 
-message = dummy_print
+message = print
 
 settings = pb.SettingsResponse()
 
@@ -24,18 +26,22 @@ class ProductomerEmulator:
         self.connection = SPP(self.read_cb)
         self.processor = ProtocolProcessor(0x09)
 
-    def read_cb(self, data):
-        request = self.processor.ParceFromString(pb.Request(), data)
+    def read_cb(self, fd):
+        message("Read called at : {}".format(time.time()))
+        while True:
+            request = self.processor.ParceFromFile(pb.Request(), fd)
+            if not request:
+                break
 
-        response = self._createAnswer(request.id)
+            response = self._createAnswer(request.id)
 
-        error = False
-        if request.HasField("writeSettings"):
-            error |= self.processSettings(request, response)
+            error = False
+            if request.HasField("writeSettings"):
+                error |= self.processSettings(request, response)
 
-        response.Global_status = pb.STATUS.Value('ERRORS_IN_SUBCOMMANDS') if error else pb.STATUS.Value('OK')
+            response.Global_status = pb.STATUS.Value('ERRORS_IN_SUBCOMMANDS') if error else pb.STATUS.Value('OK')
 
-        self.send_data(self.processor.SerializeToString(response))
+            self.send_data(self.processor.SerializeToString(response))
 
     def _createAnswer(self, request_id):
         response = pb.Response()
@@ -49,12 +55,58 @@ class ProductomerEmulator:
         self.connection.write_spp(data)
 
     def processSettings(self, req, resp):
+        error = False
+
         new_settings = req.writeSettings
         if new_settings.HasField("partNumber"):
             settings.partNumber = new_settings.partNumber
+        if new_settings.HasField("measureTimeT1"):
+            if 20 < new_settings.measureTimeT1 < 2000:
+                settings.measureTimeT1 = new_settings.measureTimeT1
+            else:
+                error |= True
+        if new_settings.HasField("measureTimeT2"):
+            if 20 < new_settings.measureTimeT2 < 2000:
+                settings.measureTimeT2 = new_settings.measureTimeT2
+            else:
+                error |= True
+
+        if new_settings.HasField("ReferenceFrequency"):
+            if 11999500 < new_settings.ReferenceFrequency < 12000500:
+                settings.ReferenceFrequency = new_settings.ReferenceFrequency
+            else:
+                error |= True
+
+        if new_settings.HasField("Enable_T1_Chanel"):
+            settings.Enable_T1_Chanel = new_settings.Enable_T1_Chanel
+        if new_settings.HasField("Enable_T2_Chanel"):
+            settings.Enable_T2_Chanel = new_settings.Enable_T2_Chanel
+        if new_settings.HasField("Show_T1_Freq"):
+            settings.Show_T1_Freq = new_settings.Show_T1_Freq
+        if new_settings.HasField("Show_T2_Freq"):
+            settings.Show_T2_Freq = new_settings.Show_T2_Freq
+
+        if new_settings.HasField("T1_Coeffs"):
+            if self.check_coeffs(new_settings.T1_Coeffs):
+                settings.T1_Coeffs.CopyFrom(new_settings.T1_Coeffs)
+            else:
+                error |= True
+        if new_settings.HasField("T2_Coeffs"):
+            if self.check_coeffs(new_settings.T2_Coeffs):
+                settings.T2_Coeffs.CopyFrom(new_settings.T2_Coeffs)
+            else:
+                error |= True
 
         resp.Settings.CopyFrom(settings)
-        return False
+
+        message("Processing SettingsRequest.. " + ("error" if error else "success"))
+
+        return error
+
+    def check_coeffs(self, coeffs):
+        return (not math.isnan(coeffs.F0)) and (not math.isnan(coeffs.T0)) and \
+               (len(coeffs.C) == 3) and \
+               not reduce(lambda a, v: a or v, map(math.isnan, coeffs.C))
 
 
 def defaultSettings():

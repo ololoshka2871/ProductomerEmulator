@@ -51,7 +51,7 @@ class Profile(dbus.service.Object):
             self.fd = -1
 
     def io_cb(self, fd, conditions):
-        self.read_io_cb(os.read(fd, 1024))
+        self.read_io_cb(fd)
         return True
 
     def write_io(self, value):
@@ -92,8 +92,8 @@ class SPP:
 
         manager.RegisterProfile(profile_path, server_uuid, opts)
 
-    def read_cb(self, value):
-        print(value)
+    def read_cb(self, fd):
+        print(os.read(fd, 8192))
 
     def write_spp(self, value):
         self.profile.write_io(value)
